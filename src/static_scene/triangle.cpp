@@ -24,7 +24,7 @@ bool Triangle::intersect(const Ray& r) const {
 	Vector3D p2 = mesh->positions[v3];
 	Vector3D e1 = p1 - p0,
 		e2 = p2 - p0,
-		s = -p0,
+		s = r.o - p0,
 		d = r.d;
 
 	double c = dot(cross(e1, d), e2);
@@ -60,7 +60,7 @@ bool Triangle::intersect(const Ray& r, Intersection* isect) const {
 	Vector3D p2 = mesh->positions[v3];
 	Vector3D e1 = p1 - p0,
 		e2 = p2 - p0,
-		s = -p0,
+		s = r.o - p0,
 		d = r.d;
 
 	double c = dot(cross(e1, d), e2);
@@ -84,7 +84,7 @@ bool Triangle::intersect(const Ray& r, Intersection* isect) const {
 			}
 			isect->primitive = this;
 			isect->bsdf = get_bsdf();
-			r.max_t = t;
+
 			return true;
 		}
 		else
