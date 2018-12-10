@@ -332,7 +332,6 @@ EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0) {
 	HalfedgeIter h1, h2, h3, h4, h5, h6, h_twin;
 	VertexIter v1, v2, v3, v4;
 	FaceIter f1, f2;
-	//float error_threshold = 0.0000001;
 
 	h1 = h->next();
 	h_twin = h->twin();
@@ -345,11 +344,6 @@ EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0) {
 	v4 = h->vertex();
 	f1 = h->face();
 	f2 = h_twin->face();
-
-	//if ((f1->normal()-f2->normal()).norm()>error_threshold) {
-	//	showError("f1 and f2 are not on the same plane!");
-	//	return e0;
-	//}
 
 	do {
 		h2 = h;
