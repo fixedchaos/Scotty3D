@@ -28,6 +28,55 @@ BVHAccel::BVHAccel(const std::vector<Primitive *> &_primitives,
   }
 
   root = new BVHNode(bb, 0, primitives.size());
+  BVH_build_recusive(root, max_leaf_size);
+}
+
+void BVHAccel::BVH_build_recusive(BVHNode* root, size_t max_leaf_size)
+{
+	if (root->range <= max_leaf_size)
+	{
+		return;
+	}
+	// Find split using a simple strategy: x,y,z in cyclic
+	static size_t split_index = 0;
+	switch (split_index)
+	{
+	case 0:
+		std::sort(primitives.begin() + root->start, primitives.begin() + root->start + root->range,
+			[](const Primitive* lhs, const Primitive* rhs) { return lhs->get_bbox().centroid().x < rhs->get_bbox().centroid().x;  });
+		break;
+	case 1:
+		std::sort(primitives.begin() + root->start, primitives.begin() + root->start + root->range,
+			[](const Primitive* lhs, const Primitive* rhs) { return lhs->get_bbox().centroid().y < rhs->get_bbox().centroid().y;  });
+		break;
+	case 2:
+		std::sort(primitives.begin() + root->start, primitives.begin() + root->start + root->range,
+			[](const Primitive* lhs, const Primitive* rhs) { return lhs->get_bbox().centroid().z < rhs->get_bbox().centroid().z;  });
+		break;
+	default:
+		break;
+	}
+	split_index = (split_index + 1) % 3;
+
+	// With a simple model : middle to split
+	auto mid = root->range / 2;
+
+	// Compute left and right node bbox
+	BBox left_bbox, right_bbox;
+	for (size_t i = root->start; i < root->start + mid; i++)
+	{
+		left_bbox.expand(primitives[i]->get_bbox());
+	}
+
+	for (size_t i = root->start + mid; i < root->start + root->range; i++)
+	{
+		right_bbox.expand(primitives[i]->get_bbox());
+	}
+
+	root->l = new BVHNode(left_bbox, root->start, mid);
+	root->r = new BVHNode(right_bbox, root->start + mid, root->range - mid);
+	BVH_build_recusive(root->l, max_leaf_size);
+	BVH_build_recusive(root->r, max_leaf_size);
 }
 
 
