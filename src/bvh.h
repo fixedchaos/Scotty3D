@@ -118,6 +118,8 @@ class BVHAccel : public Aggregate {
   BVHNode* root;  ///< root node of the BVH
 
   void BVH_build_recusive(BVHNode* root, size_t max_leaf_size);
+ 
+  void  build_BVH_recursive(BVHNode* root, size_t max_leaf_size);
 };
 
 }  // namespace StaticScene
