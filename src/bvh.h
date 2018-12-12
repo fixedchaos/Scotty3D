@@ -120,6 +120,12 @@ class BVHAccel : public Aggregate {
   void BVH_build_recusive(BVHNode* root, size_t max_leaf_size);
  
   void  build_BVH_recursive(BVHNode* root, size_t max_leaf_size);
+
+  void destruct_BVH_recursive(BVHNode* root);
+
+  bool find_intersect_recursive(BVHNode* root, const Ray &ray) const;
+
+  bool find_intersect_recursive(BVHNode* root, const Ray &ray, Intersection *isect) const;
 };
 
 }  // namespace StaticScene

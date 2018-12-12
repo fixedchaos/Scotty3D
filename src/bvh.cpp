@@ -40,7 +40,7 @@ void BVHAccel::BVH_build_recusive(BVHNode* root, size_t max_leaf_size)
 	}
 	// Find split using a simple strategy: x,y,z in cyclic
 	static size_t split_index = 0;
-	switch (split_index)
+	switch (split_index%3)
 	{
 	case 0:
 		std::sort(primitives.begin() + root->start, primitives.begin() + root->start + root->range,
@@ -57,7 +57,6 @@ void BVHAccel::BVH_build_recusive(BVHNode* root, size_t max_leaf_size)
 	default:
 		break;
 	}
-	split_index = (split_index + 1) % 3;
 
 	// With a simple model : middle to split
 	auto mid = root->range / 2;
@@ -76,8 +75,11 @@ void BVHAccel::BVH_build_recusive(BVHNode* root, size_t max_leaf_size)
 
 	root->l = new BVHNode(left_bbox, root->start, mid);
 	root->r = new BVHNode(right_bbox, root->start + mid, root->range - mid);
+
+	++split_index;
 	BVH_build_recusive(root->l, max_leaf_size);
 	BVH_build_recusive(root->r, max_leaf_size);
+	--split_index;
 }
 
 void BVHAccel::build_BVH_recursive(BVHNode* node, const size_t max_leaf_size) {
@@ -224,7 +226,23 @@ void BVHAccel::build_BVH_recursive(BVHNode* node, const size_t max_leaf_size) {
 BVHAccel::~BVHAccel() {
   // TODO (PathTracer):
   // Implement a proper destructor for your BVH accelerator aggregate
+	destruct_BVH_recursive(root);
+}
 
+void BVHAccel::destruct_BVH_recursive(BVHNode* node)
+{
+	if (root == nullptr)
+	{
+		return;
+	}
+	else
+	{
+		auto left = node->l;
+		auto right = node->r;
+		delete node;
+		destruct_BVH_recursive(left);
+		destruct_BVH_recursive(right);
+	}
 }
 
 BBox BVHAccel::get_bbox() const { return root->bb; }
@@ -234,13 +252,60 @@ bool BVHAccel::intersect(const Ray &ray) const {
   // Implement ray - bvh aggregate intersection test. A ray intersects
   // with a BVH aggregate if and only if it intersects a primitive in
   // the BVH that is not an aggregate.
+	double t0, t1;
+	bool intersection = root->bb.intersect(ray, t0, t1);
+	double tmin = std::max(t0, ray.min_t),
+		tmax = std::min(t1, ray.max_t);
+	if (intersection && tmin < tmax)
+	{
+		return find_intersect_recursive(root, ray);
+	}
+	return false;
+}
 
-  bool hit = false;
-  for (size_t p = 0; p < primitives.size(); ++p) {
-    if (primitives[p]->intersect(ray)) hit = true;
-  }
+bool BVHAccel::find_intersect_recursive(BVHNode* node, const Ray &ray) const
+{
+	if (node == nullptr)
+	{
+		return false;
+	}
 
-  return hit;
+	if (node->isLeaf())
+	{
+		for (size_t i = 0; i < node->range; i++)
+		{
+			auto idx = node->start + i;
+			if (primitives[idx]->intersect(ray))
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		auto left = node->l, right = node->r;
+		double t0, t1;
+		bool intersection = left->bb.intersect(ray, t0, t1);
+		double tmin = std::max(t0, ray.min_t),
+			tmax = std::min(t1, ray.max_t);
+		if (intersection && tmin < tmax)
+		{
+			if (find_intersect_recursive(left, ray))
+			{
+				return true;
+			}
+		}
+
+		intersection = right->bb.intersect(ray, t0, t1);
+		tmin = std::max(t0, ray.min_t),
+			tmax = std::min(t1, ray.max_t);
+		if (intersection && tmin < tmax)
+		{
+			return find_intersect_recursive(right, ray);
+		}
+	}
+
+	return false;
 }
 
 bool BVHAccel::intersect(const Ray &ray, Intersection *isect) const {
@@ -251,12 +316,69 @@ bool BVHAccel::intersect(const Ray &ray, Intersection *isect) const {
   // You should store the non-aggregate primitive in the intersection data
   // and not the BVH aggregate itself.
 
-  bool hit = false;
-  for (size_t p = 0; p < primitives.size(); ++p) {
-    if (primitives[p]->intersect(ray, isect)) hit = true;
-  }
+	double t0, t1;
+	if (root->bb.intersect(ray, t0, t1)) {
+		if (!((t0 < ray.min_t&&t1 < ray.min_t) || (t0 > ray.max_t&&t1 > ray.max_t))) {
+			return find_intersect_recursive(root, ray, isect);
+		}
+	}
+	return false;
+}
 
-  return hit;
+bool BVHAccel::find_intersect_recursive(BVHNode* node, const Ray &ray, Intersection *isect) const
+{
+	bool hit = false;
+
+	if (node->isLeaf())
+	{
+		for (size_t i = 0; i < node->range; i++)
+		{
+			auto idx = node->start + i;
+			if (primitives[idx]->intersect(ray, isect))
+			{
+				hit = true;
+			}
+		}
+	}
+	else
+	{
+		auto left = node->l, right = node->r;
+		double t0, t1, t2, t3, tbest1, tbest2;
+		bool left_intersection = left->bb.intersect(ray, t0, t1);
+		bool right_intersection = right->bb.intersect(ray, t2, t3);
+		
+		if (t0 >= ray.min_t&&t0 <= ray.max_t) {
+			tbest1 = t0;
+		}
+		else {
+			tbest1 = t1;
+		}
+		if (t2 >= ray.min_t&&t2 <= ray.max_t) {
+			tbest2 = t2;
+		}
+		else {
+			tbest2 = t3;
+		}
+		BVHNode *first = (tbest1 <= tbest2) ? node->l : node->r;
+		BVHNode *second = (tbest1 <= tbest2) ? node->r : node->l;
+
+		if (first->bb.intersect(ray, t0, t1)) {
+			if (!((t0 < ray.min_t&&t1 < ray.min_t) || (t0 > ray.max_t&&t1 > ray.max_t))) {
+				if (find_intersect_recursive(first,ray, isect)) {
+					hit = true;
+				}
+			}
+		}
+
+		if (second->bb.intersect(ray, t0, t1)) {
+			if (!((t0 < ray.min_t&&t1 < ray.min_t) || (t0 > ray.max_t&&t1 > ray.max_t)) && isect->t > t0) {
+				if (find_intersect_recursive(second, ray, isect)) {
+					hit = true;
+				}
+			}
+		}
+	}
+	return hit;
 }
 
 }  // namespace StaticScene
