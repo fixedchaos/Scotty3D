@@ -476,6 +476,7 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
 		Ray shadow_ray(hit_p + EPS_D * dir_to_light, dir_to_light, dist_to_light - 2 * EPS_D, 0);
 		if (!bvh->intersect(shadow_ray))
 		{
+
 			L_out += (cos_theta / (num_light_samples * pr)) * f * light_L;
 		}
       }
@@ -492,12 +493,28 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
   // (1) randomly select a new ray direction (it may be
   // reflection or transmittence ray depending on
   // surface type -- see BSDF::sample_f()
+  int ray_num = isect.bsdf->is_delta() ? 1 : 4;
+  for (int j = 0; j < ray_num; j++) {
+	  Vector3D w_in;
+	  float pr;
+	  Spectrum& f = isect.bsdf->sample_f(w_out, &w_in, &pr);
 
-  // (2) potentially terminate path (using Russian roulette)
+	  // (2) potentially terminate path (using Russian roulette)
 
-  // (3) evaluate weighted reflectance contribution due 
-  // to light from this direction
+	  float terminate_p = 1.f - f.illum();
+	  terminate_p = max(0.f, terminate_p);
+	  float rand_num = (float)(std::rand()) / RAND_MAX;
+	  if (rand_num < terminate_p || r.depth >= max_ray_depth) {
+		  return L_out;
+	  }
 
+	  // (3) evaluate weighted reflectance contribution due 
+	  // to light from this direction
+
+	  //return L_out;
+
+	  L_out += (f * trace_ray(Ray(hit_p + EPS_D * o2w*w_in, o2w*w_in, int(r.depth + 1))) * (abs(w_in.z) / (pr*(1 - terminate_p)))) * (1.f / ray_num);
+  }
   return L_out;
 }
 

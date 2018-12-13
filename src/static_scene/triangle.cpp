@@ -94,7 +94,7 @@ bool Triangle::intersect(const Ray& r, Intersection* isect) const {
 			}
 			isect->primitive = this;
 			isect->bsdf = get_bsdf();
-
+			r.max_t = t;
 			return true;
 		}
 		else
