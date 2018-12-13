@@ -546,6 +546,7 @@ Spectrum PathTracer::raytrace_pixel(size_t x, size_t y) {
 	  p.y /= (float)height;
 	  result = result + trace_ray(camera->generate_ray(p.x, p.y));
   }
+  result *= (float)(1) / (float)(num_samples);
   return result;
 }
 
