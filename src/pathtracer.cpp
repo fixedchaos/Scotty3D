@@ -405,6 +405,10 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
     // TODO (PathTracer):
     // (Task 7) If you have an environment map, return the Spectrum this ray
     // samples from the environment map. If you don't return black.
+	if (this->envLight)
+	{
+		return envLight->sample_dir(r);
+	}
     return Spectrum(0, 0, 0);
   }
 
