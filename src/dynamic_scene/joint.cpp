@@ -71,6 +71,18 @@ StaticScene::SceneObject* Joint::get_static_object() { return nullptr; }
 // The real calculation.
 void Joint::calculateAngleGradient(Joint* goalJoint, Vector3D q) {
   // TODO (Animation) task 2B
+	vector<Vector3D> axes(3);
+	getAxes(axes);
+	Vector3D p = goalJoint->getEndPosInWorld() - this->getBasePosInWorld();
+	Vector3D Ji0 = cross(axes[0], p);
+	Vector3D Ji1 = cross(axes[1], p);
+	Vector3D Ji2 = cross(axes[2], p);
+	double gradient0 = dot(Ji0, goalJoint->getEndPosInWorld() - q);
+	double gradient1 = dot(Ji1, goalJoint->getEndPosInWorld() - q);
+	double gradient2 = dot(Ji2, goalJoint->getEndPosInWorld() - q);
+	ikAngleGradient.x += gradient0;
+	ikAngleGradient.y += gradient1;
+	ikAngleGradient.z += gradient2;
 }
 
 // The constructor sets the dynamic angle and velocity of
@@ -143,7 +155,15 @@ Matrix4x4 Joint::getTransformation() {
   */
 
   Matrix4x4 T = Matrix4x4::identity();
-  return T;
+  for (auto p = this->parent; p != nullptr; p = p->parent)
+  {
+	  auto tem = p->SceneObject::getTransformation();
+	  auto parentT = p->SceneObject::getTransformation() * Matrix4x4::translation(p->axis);
+	  T = parentT * T;
+  }
+
+  auto tem2 = this->skeleton->mesh->getTransformation();
+  return this->skeleton->mesh->getTransformation() * T;
 }
 
 Matrix4x4 Joint::getBindTransformation() {
@@ -164,8 +184,9 @@ Vector3D Joint::getBasePosInWorld() {
   utilize the transformation returned by Joint::getTransform() to compute the
   base position in world coordinate frame.
   */
-
-  return Vector3D();
+	Vector4D q = (0, 0, 0, 1.0);  // default is origin
+	q = getTransformation() * q;
+	return q.projectTo3D();
 }
 
 Vector3D Joint::getEndPosInWorld() {
@@ -174,8 +195,10 @@ Vector3D Joint::getEndPosInWorld() {
   joint's transformation and translate along this joint's axis to get the end
   position in world coordinate frame.
   */
-
-  return Vector3D();
+	Vector4D  q(0, 0, 0, 1.0);
+	auto T = SceneObject::getTransformation() * Matrix4x4::translation(axis);
+	q = getTransformation() * T * q;
+  return q.projectTo3D();
 }
 }  // namespace DynamicScene
 }  // namespace CMU462

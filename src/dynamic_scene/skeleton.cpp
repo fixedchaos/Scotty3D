@@ -341,6 +341,31 @@ void Skeleton::unkeyframe(double t) { root->unkeyframe(t); }
 void Skeleton::reachForTarget(map<Joint*, Vector3D> targets, double time) {
   // TODO (Animation) Task 2B
   // Do several iterations of Jacobian Transpose gradient descent for IK
+	int max_ite = 100;
+	double interval = 0.01;
+
+	for (int cur_ite = 0; cur_ite < max_ite; cur_ite++)
+	{
+		// reset ikAngleGradient for each joint
+		for (auto j = joints.begin(); j != joints.end(); j++) {
+			(*j)->ikAngleGradient = Vector3D();
+		}
+
+		// Compute gradient for each target joint
+		for (auto t = targets.begin(); t != targets.end(); t++)
+		{
+			for (auto  j = joints.begin(); j != joints.end(); j++)
+			{
+				(*j)->calculateAngleGradient(t->first, t->second);
+			}
+		}
+
+		// Update each joint using GDM
+		for (auto j = joints.begin(); j != joints.end(); j++)
+		{
+			(*j)->setAngle(time, (*j)->getAngle(time) - interval * (*j)->ikAngleGradient);
+		}
+	}
 }
 
 void Skeleton::save(const char* filename) {
