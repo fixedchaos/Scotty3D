@@ -638,9 +638,34 @@ BBox Face::bounds() const {
 
 BBox Halfedge::bounds() const { return edge()->bounds(); }
 
+float compute_cot(Vector3D &a, Vector3D &b, Vector3D &c) {
+	Vector3D v1 = a - b;
+	Vector3D v2 = c - b;
+	return dot(v1, v2) / cross(v1, v2).norm();
+}
+
 float Vertex::laplacian() const {
   // TODO (Animation) Task 4
-  return 0.0;
+	auto h = halfedge();
+	float result = 0.;
+	float u_i = this->offset;
+	float u_j;
+	float cot_alpha, cot_beta;
+	Vector3D v_i = this->position;
+	Vector3D v_j, v_alphaij, v_betaij;
+	do {
+		u_j = h->twin()->vertex()->offset;
+		v_j = h->twin()->vertex()->position;
+		v_alphaij = h->twin()->next()->next()->vertex()->position;
+		v_betaij = h->next()->next()->vertex()->position;
+
+		cot_alpha = compute_cot(v_i, v_alphaij, v_j);
+		cot_beta = compute_cot(v_i, v_betaij, v_j);
+		result += (cot_alpha + cot_beta)*(u_j - u_i) / 2.;
+
+		h = h->twin()->next();
+	} while (h != halfedge());
+	return result;
 }
 
 void Vertex::getAxes(vector<Vector3D>& axes) const {
